@@ -1,0 +1,19 @@
+# Training domains the enrichment step extracts per entry (activity, duration, intensity).
+# Copy to data/taxonomy.yaml (inside the vault) and adapt to your own sports;
+# the real file never goes into git.
+domains:
+  endurance:
+    description: Running, cycling, swimming, rowing, skiing
+    hints: [laufen, lauf, joggen, radtour, rad, schwimmen, rudern, ski, running, cycling, swim, rowing]
+  strength:
+    description: Strength and gym training
+    hints: [krafttraining, gym, hanteln, kniebeugen, liegestütze, strength, weights, squats]
+  team_sports:
+    description: Football, volleyball, tennis and other games
+    hints: [fußball, volleyball, tennis, basketball, football, match, spiel]
+  mobility:
+    description: Stretching, yoga, mobility work
+    hints: [dehnen, dehnübungen, yoga, mobility, stretching]
+  recovery:
+    description: Rest days, sleep, injuries and comebacks
+    hints: [pause, ruhetag, verletzung, knie, schlaf, rest day, injury, sleep]

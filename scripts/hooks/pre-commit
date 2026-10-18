@@ -1,0 +1,18 @@
+#!/bin/sh
+# Blocks commits that would add private files or denylisted terms.
+. "$(git rev-parse --show-toplevel)/scripts/hooks/leak-guard.sh"
+status=0
+
+bad=$(git diff --cached --name-only --diff-filter=ACMR | blocked_paths)
+if [ -n "$bad" ]; then
+  echo "leak-guard: refusing to commit private files:" >&2
+  echo "$bad" | sed 's/^/  /' >&2
+  status=1
+fi
+
+# added lines and file names only
+{ git diff --cached --name-only; git diff --cached -U0 --no-color | grep '^+' | grep -v '^+++'; } \
+  | check_text "staged changes" || status=1
+
+[ $status -eq 0 ] || echo "leak-guard: commit aborted." >&2
+exit $status

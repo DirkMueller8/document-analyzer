@@ -1,0 +1,20 @@
+# Private data - never commit
+data/
+private/
+*.odt
+!samples/sample_entries*.odt
+*.db
+*.db-*
+egress.log
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+.env

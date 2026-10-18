@@ -1,0 +1,12 @@
+# Values extracted deterministically (regex) from every entry and stored per day.
+# Copy to data/measurements.yaml (inside the vault) and adapt the patterns to how YOU write them.
+# Each pattern needs a named group (?P<value>...). A date written in front of the value on the
+# same line ("12.03. Gewicht: 80,5 kg", "Ref_12.03.2024 ...") is used instead of the entry date.
+measurements:
+  weight:
+    unit: kg
+    min: 30          # plausibility range; values outside are ignored
+    max: 250
+    patterns:
+      - '(?i)\bgewicht\s*[:=]\s*(?P<value>\d{2,3}(?:[.,]\d{1,2})?)\s*kg\b'
+      - '(?i)\bweight\s*[:=]\s*(?P<value>\d{2,3}(?:[.,]\d{1,2})?)\s*kg\b'

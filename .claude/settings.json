@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./data/**)",
+      "Edit(./data/**)",
+      "Write(./data/**)",
+      "Read(**/*.odt)",
+      "Bash(*corpus.db*)",
+      "Bash(*data/*)",
+      "Bash(*data\*)"
+    ]
+  }
+}
