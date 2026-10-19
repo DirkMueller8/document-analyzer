@@ -1,6 +1,6 @@
 """Denylist check for the leak-guard git hooks.
 
-Reads text on stdin and the denylist (default: private/denylist.txt, one term per line,
+Reads text on stdin and the denylist (path from LEAK_GUARD_DENYLIST, one term per line,
 # = comment). Exits 1 and lists the hits if any term occurs. Matching is case-insensitive
 and Unicode-aware; terms of up to 3 characters must match a whole word (so "ana" does
 not hit "banana"), longer terms match anywhere (so "Lena" also catches "Lenas").
@@ -38,8 +38,10 @@ def find_hits(text: str, terms: list[str]) -> list[str]:
 
 def main() -> int:
     label = sys.argv[1] if len(sys.argv) > 1 else "text"
-    root = Path(__file__).resolve().parents[2]
-    deny = Path(os.environ.get("LEAK_GUARD_DENYLIST", root / "private" / "denylist.txt"))
+    deny = Path(os.environ.get("LEAK_GUARD_DENYLIST", ""))
+    if not deny.is_file():
+        print("leak-guard: LEAK_GUARD_DENYLIST is not set or the file is missing (fail closed).", file=sys.stderr)
+        return 1
     text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
     hits = find_hits(text, load_terms(deny))
     if hits:

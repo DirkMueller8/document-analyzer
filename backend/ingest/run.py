@@ -22,7 +22,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from analysis.measurements import extract, load_kinds, store_all
+from analysis.measurements import count_ignored_variants, count_skipped_lines, extract, load_kinds, store_all
 
 from .odf_crypto import WrongPassword, decrypt_odt, is_encrypted
 from .odt_parser import extract_blocks
@@ -76,6 +76,15 @@ def main(argv: list[str] | None = None) -> None:
     print("\nMeasurements found: " + (", ".join(
         f"{k.name}={len(ms)} ({min(m.date for m in ms)} .. {max(m.date for m in ms)})"
         if (ms := [m for m in found if m.kind == k.name]) else f"{k.name}=0" for k in kinds) or "none configured"))
+    for label, counter in (("Ignored variants (similar to the format, but not exactly)", count_ignored_variants),
+                           ("Excluded lines (skip_lines, e.g. references to other days)", count_skipped_lines)):
+        totals: dict[str, int] = {}
+        for e in entries:
+            if e.date_start and e.precision == "day":
+                for name, n in counter(e.text, kinds).items():
+                    totals[name] = totals.get(name, 0) + n
+        if totals:
+            print(f"{label}: " + ", ".join(f"{k}={n}" for k, n in sorted(totals.items())))
 
     if not args.dry_run:
         # empty date lines and pre-written future dates carry no content: store them once filled in

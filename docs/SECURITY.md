@@ -16,6 +16,7 @@ This repository is public by design. **Knowing the code must not help an attacke
 | **Data leaving via the network** | The LLM (Ollama), backend and UI bind to `127.0.0.1`. The Ollama client in this code refuses non-loopback hosts and cloud-hosted model names. Windows Firewall outbound rules block the Python runtime and Ollama. Offline flags (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`) after model download. No libraries with telemetry. |
 | **The optional cloud analyst** | Only path out. Strict schema (numbers, dates, fixed labels, no free text), pseudonymized identifiers, a per-request payload preview with user approval, and a local egress log. Off by default. |
 | **Plaintext written to disk during processing** | Decryption happens in memory. The validation report contains no text unless `--show-snippets` is passed. All writes go into the vault, and the import refuses to write while the vault is closed. |
+| **Unprotected copies made by the editor** (backup, recovery and temp files, older copies of the document, file-name history) | Password protection only covers formats that support it, so the diary is never saved as RTF, DOC or plain text. Editor backup copies are switched off, and `scripts\check-leftovers.ps1` inspects the editor's backup folder, stray copies, stale lock files, the shell history and the editor settings. It is read-only: it only checks whether a file carries an encryption entry and never reads document text. |
 | **AI coding assistants reading private data** | `.claude/settings.json` denies access to `data/` and `*.odt`. Development uses synthetic samples only. |
 | **Supply chain**: a malicious dependency or pushed code | The firewall blocks outbound traffic from the runtime, so exfiltration fails. Pin and review dependency updates. Enable 2FA on the GitHub account and protect the main branch. Never run code from pull requests while the vault is open. |
 | **Malware in the logged-in session** | Biggest residual risk: anything running as you while the vault is unlocked can read it. Keep the OS and browser patched, avoid untrusted software, and close the vault after use (`scripts\vault-close.ps1`). |
@@ -37,6 +38,8 @@ This repository is public by design. **Knowing the code must not help an attacke
 - [ ] 2FA on GitHub, branch protection on `main`
 - [ ] Encrypted backups of the vault file, and a copy of `overrides.yaml` and the taxonomy
 - [ ] Close the vault when done
+- [ ] Turn off the editor's "always create backup copy", and run `scripts\check-leftovers.ps1` after changing editor settings and now and then
+- [ ] Never save the protected document in a format without encryption (RTF, DOC, TXT)
 
 ## Reporting
 Please report security issues privately through GitHub's "Report a vulnerability" feature rather than in public issues.

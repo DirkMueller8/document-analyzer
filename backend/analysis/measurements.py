@@ -27,6 +27,11 @@ class Kind:
     lo: float
     hi: float
     patterns: tuple[re.Pattern, ...]
+    # Looser patterns that are only COUNTED when the strict ones don't match: lines that look
+    # like a measurement but have a different format are reported (counts only), never stored.
+    loose: tuple[re.Pattern, ...] = ()
+    # Lines matching one of these are excluded entirely (e.g. lines that only refer to another day).
+    skip: tuple[re.Pattern, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -46,9 +51,34 @@ def load_kinds(path: str | Path | None = None) -> list[Kind]:
     cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
     return [
         Kind(name, spec.get("unit"), float(spec.get("min", float("-inf"))), float(spec.get("max", float("inf"))),
-             tuple(re.compile(p) for p in spec.get("patterns") or []))
+             tuple(re.compile(p) for p in spec.get("patterns") or []),
+             tuple(re.compile(p) for p in spec.get("loose_patterns") or []),
+             tuple(re.compile(p) for p in spec.get("skip_lines") or []))
         for name, spec in (cfg.get("measurements") or {}).items()
     ]
+
+
+def count_ignored_variants(text: str, kinds: list[Kind]) -> dict[str, int]:
+    """Lines that resemble a measurement (loose pattern) but don't match the strict format.
+
+    Returns counts per kind, never the text, so the number is safe to report.
+    """
+    counts: dict[str, int] = {}
+    for line in text.split("\n"):
+        for k in kinds:
+            if k.loose and not any(p.search(line) for p in k.patterns) and any(p.search(line) for p in k.loose):
+                counts[k.name] = counts.get(k.name, 0) + 1
+    return counts
+
+
+def count_skipped_lines(text: str, kinds: list[Kind]) -> dict[str, int]:
+    """Lines that would be a measurement but are excluded by skip_lines (counts only)."""
+    counts: dict[str, int] = {}
+    for line in text.split("\n"):
+        for k in kinds:
+            if k.skip and any(s.search(line) for s in k.skip) and any(p.search(line) for p in k.patterns):
+                counts[k.name] = counts.get(k.name, 0) + 1
+    return counts
 
 
 def _line_date(line: str, entry_day: date) -> date | None:
@@ -74,6 +104,8 @@ def extract(text: str, entry_day: date, kinds: list[Kind]) -> list[Measurement]:
     for line in text.split("\n"):
         own = _line_date(line, entry_day)
         for k in kinds:
+            if any(s.search(line) for s in k.skip):
+                continue
             for pattern in k.patterns:
                 matches = list(pattern.finditer(line))
                 if not matches:
