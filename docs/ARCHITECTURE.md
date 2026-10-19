@@ -1,8 +1,11 @@
 # Architecture
 
+## Scope
+This document describes the public edition of the project. The engine is generic: it works on any dated, free-text personal record. The example configuration in this repository is a training diary (activity, duration, intensity, injuries, body weight). Personal configuration and personal data are not part of this repository.
+
 ## Goals
-1. Answer factual and trend questions about a personal training diary kept as free text over many years (thousands of entries, multilingual): what was trained, how long, how hard, injuries, body weight.
-2. Run on a single desktop PC. No text leaves the machine.
+1. Answer factual and trend questions about a personal diary kept as free text over many years (thousands of entries, multilingual). The public example uses training records: what was trained, how long, how hard, injuries, body weight.
+2. Run on a single desktop PC. By default no text leaves the machine. The only optional egress is anonymized monthly aggregates through the privacy gateway, and each request needs approval.
 3. Stay usable with daily additions, so updates must be incremental.
 
 ## Components

@@ -5,7 +5,9 @@
 A training diary kept over many years holds answers that are hard to find by scrolling:
 *When did I run my first half marathon? How has my weekly training volume developed? How long did my knee injury keep me off the bike? Am I training harder or easier than five years ago, and how has my body weight followed?*
 
-`document-analyzer` turns a password-protected `.odt` training diary (free text: what you did, how long, how hard) into a dated, searchable, enriched knowledge base and lets a team of local AI agents answer such questions **with citations and charts**, without sending a single sentence to the internet.
+`document-analyzer` turns a password-protected `.odt` training diary (free text: what you did, how long, how hard) into a dated, searchable, enriched knowledge base and lets a team of local AI agents answer such questions **with citations and charts**, without sending diary text to any cloud service.
+
+> **Scope:** This public edition documents the engine, with a training diary as its example. The code works on any dated personal record; personal configuration and data are not part of this repository.
 
 > **Status:** work in progress. Encrypted ingestion, incremental sync, body-weight statistics, local hybrid search with cited answers and a privacy-gateway proof of concept are working. See the [roadmap](#roadmap).
 
