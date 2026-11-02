@@ -3,6 +3,7 @@
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\vault-common.ps1"
 
+Unregister-VaultAutoClose
 $img = Get-DiskImage -ImagePath $VaultFile
 if (-not $img.Attached) { Write-Host "Vault is already closed."; return }
 $vol = Get-VaultVolumePath

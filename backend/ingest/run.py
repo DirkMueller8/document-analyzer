@@ -22,7 +22,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from analysis.measurements import count_ignored_variants, count_skipped_lines, extract, load_kinds, store_all
+from analysis.measurements import (achievement_variant_shapes, count_ignored_variants, count_skipped_lines,
+                                   count_unstorable, extract, load_kinds, mood_variant_shapes, store_all)
 
 from .odf_crypto import WrongPassword, decrypt_odt, is_encrypted
 from .odt_parser import extract_blocks
@@ -47,6 +48,23 @@ def open_document(path: Path, password: str | None = None, attempts: int = 3):
         finally:
             pw = None
     raise SystemExit("Giving up after 3 wrong passwords.")
+
+
+def unread_marker_lines(entries, label: str, shape_counter) -> list[str]:
+    """Counts per shape of marker lines that are not read, then the entry dates per shape (dates only, no text),
+    so each line can be found in the document."""
+    shapes: dict[str, int] = {}
+    dates: dict[str, list[str]] = {}
+    for e in entries:
+        if e.date_start and e.precision == "day":
+            for shape, n in shape_counter(e.text).items():
+                shapes[shape] = shapes.get(shape, 0) + n
+                dates.setdefault(shape, []).append(e.raw_date)
+    if not shapes:
+        return []
+    ordered = sorted(shapes.items(), key=lambda kv: -kv[1])
+    return [f"{label} lines that are not read, by shape: " + "; ".join(f"{k} {n}" for k, n in ordered),
+            *(f"  {k}: " + ", ".join(dates[k]) for k, _ in ordered)]
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -76,6 +94,9 @@ def main(argv: list[str] | None = None) -> None:
     print("\nMeasurements found: " + (", ".join(
         f"{k.name}={len(ms)} ({min(m.date for m in ms)} .. {max(m.date for m in ms)})"
         if (ms := [m for m in found if m.kind == k.name]) else f"{k.name}=0" for k in kinds) or "none configured"))
+    if unstorable := count_unstorable([e.text for e in entries if e.text.strip()
+                                       and not (e.date_start and e.precision == "day")], kinds):
+        print(f"Values on entries without a day date (NOT stored, a value needs a day): {unstorable}")
     for label, counter in (("Ignored variants (similar to the format, but not exactly)", count_ignored_variants),
                            ("Excluded lines (skip_lines, e.g. references to other days)", count_skipped_lines)):
         totals: dict[str, int] = {}
@@ -85,6 +106,9 @@ def main(argv: list[str] | None = None) -> None:
                     totals[name] = totals.get(name, 0) + n
         if totals:
             print(f"{label}: " + ", ".join(f"{k}={n}" for k, n in sorted(totals.items())))
+    for label, shape_counter in (("Mood", mood_variant_shapes), ("Achievement", achievement_variant_shapes)):
+        for line in unread_marker_lines(entries, label, shape_counter):
+            print(line)
 
     if not args.dry_run:
         # empty date lines and pre-written future dates carry no content: store them once filled in

@@ -34,12 +34,18 @@ CREATE TABLE IF NOT EXISTS entry_meta (
     emotions   TEXT,   -- JSON array
     energy     INTEGER,
     sleep      TEXT,
-    themes     TEXT    -- JSON array
+    themes     TEXT,   -- JSON array
+    model        TEXT,   -- local model that made the extraction
+    version      TEXT,   -- schema version + prompt fingerprint (incl. taxonomy); a change triggers re-extraction
+    extracted_at TEXT
 );
 CREATE TABLE IF NOT EXISTS people (
     id             INTEGER PRIMARY KEY,
     canonical_name TEXT NOT NULL UNIQUE,
     aliases        TEXT NOT NULL DEFAULT '[]'  -- JSON array
+);
+CREATE TABLE IF NOT EXISTS people_ignore (
+    name_key TEXT PRIMARY KEY   -- casefolded name that is never stored as a person (club, place, ...)
 );
 CREATE TABLE IF NOT EXISTS mentions (
     person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
@@ -83,6 +89,17 @@ CREATE TABLE IF NOT EXISTS measurements (
     source   TEXT NOT NULL CHECK (source IN ('entry', 'ref'))  -- entry date or a date written before the value
 );
 CREATE INDEX IF NOT EXISTS idx_measurements ON measurements(kind, date);
+
+-- Mood per entry: the value the writer rated himself or herself ("Stimmung = +2", measurements kind 'mood')
+-- where there is one, else the local model's estimate. `source` says which, so answers can tell them apart.
+CREATE VIEW IF NOT EXISTS entry_mood AS
+SELECT e.id AS entry_id, e.date_start, e.date_precision,
+       COALESCE(r.value, m.mood_score) AS mood,
+       CASE WHEN r.value IS NOT NULL THEN 'rated' WHEN m.mood_score IS NOT NULL THEN 'estimated' END AS source
+FROM entries e
+LEFT JOIN (SELECT entry_id, AVG(value) AS value FROM measurements WHERE kind = 'mood' GROUP BY entry_id) r
+       ON r.entry_id = e.id
+LEFT JOIN entry_meta m ON m.entry_id = e.id;
 
 -- Keep the full-text index in sync with chunks (the vector table gets its trigger in search/index.py)
 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN

@@ -7,7 +7,10 @@
       "Read(**/*.odt)",
       "Bash(*corpus.db*)",
       "Bash(*data/*)",
-      "Bash(*data\\*)"
+      "Bash(*data\\*)",
+      "PowerShell(*corpus.db*)",
+      "PowerShell(*data/*)",
+      "PowerShell(*data\\*)"
     ]
   }
 }

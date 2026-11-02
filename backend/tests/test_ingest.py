@@ -105,3 +105,11 @@ def test_report_flags_typos_and_future_dates():
     assert r.future == [(5, "01.05.2030")]
     text = r.render()
     assert "Likely typos:       1" in text and "Future dates:       1" in text
+
+
+def test_report_lists_empty_entries_with_their_date():
+    entries = [Entry(date(2013, 1, 10), date(2013, 1, 10), "day", "10.01.2013", 7, "plain", []),
+               Entry(date(2013, 1, 11), date(2013, 1, 11), "day", "11.01.2013", 8, "plain", ["x"])]
+    r = build_report([], entries, today=date(2026, 10, 18))
+    assert r.empty_entries == [(7, "10.01.2013")]
+    assert "  pos 7: 10.01.2013" in r.render()

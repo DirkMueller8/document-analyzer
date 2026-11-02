@@ -1,0 +1,15 @@
+# Period notes for the mood analysis. Copy to data/mood_notes.yaml (inside the vault) and adapt;
+# the real file never goes into git. Without the file nothing changes.
+#
+# A note marks a period in the report and the chart ("#" in the table, a grey band in the chart).
+# The optional `context` is told to the local model as background when it rates the entries of the
+# period, because it reads each entry on its own: an entry that reports a small step forward sounds
+# positive, but during a long recovery it can go along with a low mood. Entries of a period with a
+# context are rated again by the next `.\enrich.ps1 --mood-only`.
+# chart_from: 1994      # optional: the chart starts in this year (the table keeps showing all years)
+notes:
+  - from: 2020-03        # YYYY, YYYY-MM or YYYY-MM-DD
+    to: 2020-09
+    label: rehab         # optional short word, drawn into the chart
+    note: Injury and rehabilitation; the estimates may be too mild.   # shown under the report table
+    context: The writer is recovering from a serious injury. Small steps forward in training do not mean that the writer feels well.

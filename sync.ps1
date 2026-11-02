@@ -6,8 +6,10 @@
 .EXAMPLE   .\sync.ps1
 .EXAMPLE   .\sync.ps1 --dry-run
 #>
-param([string]$Path = $env:DOC_PATH)
+# Positional binding is off, so an option like --dry-run is passed on instead of being taken as the path.
+[CmdletBinding(PositionalBinding = $false)]
+param([string]$Path = $env:DOC_PATH, [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
 if (-not $Path) { Write-Host "No document path. Use -Path or set DOC_PATH (see: Get-Help .\sync.ps1)." -ForegroundColor Yellow; return }
 Push-Location (Join-Path $PSScriptRoot "backend")
-try { & .\.venv\Scripts\python.exe -m ingest.run $Path @args }
+try { & .\.venv\Scripts\python.exe -m ingest.run $Path @Rest }
 finally { Pop-Location }

@@ -9,14 +9,16 @@ A training diary kept over many years holds answers that are hard to find by scr
 
 > **Scope:** This public edition documents the engine, with a training diary as its example. The code works on any dated personal record; personal configuration and data are not part of this repository.
 
-> **Status:** work in progress. Encrypted ingestion, incremental sync, body-weight statistics, local hybrid search with cited answers and a privacy-gateway proof of concept are working. See the [roadmap](#roadmap).
+> **Status:** work in progress. Encrypted ingestion, incremental sync, body-weight statistics, local hybrid search with cited answers, per-entry extraction with a local model (mood, milestones, activities), its accuracy checks against your own markers, a daily plan with a weekly report and a privacy-gateway proof of concept are working. See the [roadmap](#roadmap).
 
 ## Highlights
 - **Local by design.** The LLM, embeddings, vector search and database all run on one desktop GPU. The backend binds to `127.0.0.1`.
 - **Agentic architecture.** A router agent hands questions to specialist agents (facts, training load & trends, injuries & recovery, body weight). They use typed tools such as hybrid search and SQL aggregates, and every answer cites its source entries by date.
 - **Made for messy real-world notes.** Mixed German/English, years of changing date formats (`12.03.2021`, `1.1.99`, `Dez 1989`, `1995:`), and periods written as tables are all handled.
-- **Numbers stay numbers.** Values like body weight are extracted deterministically with your own patterns. Statistics come from SQL, never from the language model's memory.
-- **Encrypted at rest.** The diary stays password-protected (decrypted in memory only), and all derived data lives in a BitLocker-encrypted virtual drive.
+- **Numbers stay numbers.** Values like body weight are extracted deterministically with your own patterns. Statistics come from SQL, never from the language model's memory. You can rate your own mood with a line like `Stimmung = +2` in an entry; the local model's estimates are only used where you did not rate, and are always labeled as estimates.
+- **Measured, not trusted.** Mark what matters in the diary yourself (`Achievement = 2` next to a race finished, `Stimmung = +2` for your mood). The markers are hidden from the model and become the ground truth: a tuning set to improve the prompt, a held-back validation set scored only once per prompt version, and a fully reviewed period to count false alarms. The sync reports markers it cannot read by shape, never by text.
+- **From looking back to planning ahead.** A plain daily plan file (`G1 = 45`, `Mood = +1`, `Lesson: ...`) is summarized each week against your goals: daily targets that tighten over time, weekly minimums, a trend over several weeks, due and overdue milestones. The goals live in the vault, not in the code.
+- **Encrypted at rest.** The diary stays password-protected (decrypted in memory only), and all derived data lives in a BitLocker-encrypted virtual drive that locks itself after two hours (it waits for running jobs).
 - **Daily-use friendly.** Incremental sync re-processes only new or edited entries; the search index follows automatically.
 - **Optional cloud insight, under control.** A Claude analyst can design and interpret charts, but it only ever receives anonymized monthly aggregates through a privacy gateway, and you approve every request.
 
@@ -122,11 +124,19 @@ ollama pull bge-m3; ollama pull qwen3:14b; ollama pull qwen3:30b-a3b
 [Environment]::SetEnvironmentVariable("DOC_PATH", "C:\path\to\training.odt", "User")
 
 # 6. Sync (asks for the diary password; also updates the search index), then ask
-.\scripts\vault-open.ps1
+.\scripts\vault-open.ps1    # closes by itself after 2 h (-AutoCloseMinutes 0 = never; waits for running jobs)
 .\sync.ps1
 .\ask.ps1 "Wann bin ich meinen ersten Halbmarathon gelaufen?"
+.\ask.ps1 "Was habe ich am 10.04.2005 gemacht?"   # a named day (or "im April 2005") is looked up by date
 .\ask.ps1 --first "Halbmarathon"
 .\weight.ps1
+.\enrich.ps1 --limit 20      # per-entry extraction with the local model (resumable)
+.\evaluate.ps1 sample --n 30 # label a sample by hand, then: .\evaluate.ps1 score
+.\people.ps1 suggest         # name variants to merge (merge / rename / ignore)
+.\enrich.ps1 --mood-only     # only the mood of every dated entry (faster, resumable)
+.\mood.ps1                   # mood by year with 95 % intervals and a chart
+.\evaluate.ps1 achievements  # model vs the achievements you marked ("Achievement = 2" next to the sentence, values 1..3)
+.\week.ps1                   # weekly report of a daily plan file against your goals (config\goals.example.yaml)
 .\scripts\vault-close.ps1
 ```
 The sync prints a validation report with counts and positions only, no text. Wrong or missing dates can be fixed in `data\overrides.yaml` without touching the diary itself.
@@ -136,15 +146,17 @@ The sync prints a validation report with counts and positions only, no text. Wro
 |---|---|---|
 | 1 | Encrypted `.odt` ingestion, date detection, incremental sync, BitLocker vault, body-weight statistics | ✅ done |
 | 2 | Chunking, local embeddings, hybrid search (FTS5 + sqlite-vec, RRF), local Q&A with date citations | ✅ done |
-| 3 | Local LLM extraction per entry: activity, duration, intensity, injuries, training partners, milestones | ⏳ next |
+| 3 | Local LLM extraction per entry: activity, duration, intensity, injuries, training partners, milestones, mood | 🚧 extraction runs; mood and achievements measured against your own markers; full run next |
 | 4 | Router + specialist agents with typed tools and citations | ⏳ |
 | 5 | React UI with streaming chat and interactive charts (training volume, intensity, weight) | ⏳ |
 | 6 | Privacy gateway + optional cloud analyst (proof of concept: cloud-designed weight chart from monthly aggregates) | 🧪 PoC |
+| 7 | Planning: daily plan file and weekly report against your own goals; later linked with the diary's history | ✅ first version |
 
 ## Repository layout
 ```
 backend/   Python: ingest/ (decrypt, parse, sync), search/ (index, hybrid search, Q&A),
-           analysis/ (measurements, weight stats), privacy/ (gateway, cloud chart), tests/
+           enrich/ (per-entry extraction), analysis/ (measurements, weight stats),
+           privacy/ (gateway, cloud chart), planning/ (daily plan, weekly report), tests/
 config/    Example taxonomy and measurement patterns (copy to data/ and adapt)
 docs/      Architecture and security documentation
 samples/   Fully synthetic, fictional training diary (+ LibreOffice encryption helper)

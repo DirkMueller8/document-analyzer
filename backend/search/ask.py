@@ -20,7 +20,7 @@ from pathlib import Path
 
 from ingest.store import connect
 
-from .hybrid import STOPWORDS, Hit, first_mentions, search
+from .hybrid import STOPWORDS, Hit, entries_on, first_mentions, nearest_dates, search
 from .ollama_client import CHAT_MODEL, EMBED_MODEL, OllamaError, chat_stream, embed, require
 
 DATA = Path(__file__).resolve().parents[2] / "data"
@@ -35,6 +35,16 @@ hin, dass frühere, nicht erfasste Erwähnungen möglich sind.
 - Antworte in der Sprache der Frage, knapp und sachlich. Keine Diagnosen, keine Ratschläge."""
 
 FIRST_WORDS = re.compile(r"\b(erste[nrs]?|erstmals|zum ersten mal|first)\b", re.IGNORECASE)
+
+MONTHS = {"januar": 1, "jänner": 1, "februar": 2, "märz": 3, "maerz": 3, "april": 4, "mai": 5, "juni": 6,
+          "juli": 7, "august": 8, "september": 9, "oktober": 10, "november": 11, "dezember": 12}
+_MONTH_RE = "|".join(MONTHS)
+DAY_NUMERIC = re.compile(r"\b(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})\b")
+DAY_ISO = re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
+DAY_WORDS = re.compile(rf"\b(\d{{1,2}})\.?\s*({_MONTH_RE})\s+(\d{{4}})\b", re.IGNORECASE)
+MONTH_WORDS = re.compile(rf"\b({_MONTH_RE})\s+(\d{{4}})\b", re.IGNORECASE)
+MAX_DAYS = 5          # more named days than this: treat the question as a general one
+DAY_CHUNKS = 20       # excerpts per named day (long entries have several)
 
 
 def parse_when(value: str | None, end: bool = False) -> date | None:
@@ -56,7 +66,34 @@ def names_in(question: str) -> list[str]:
     return [w for w in dict.fromkeys(words) if w.lower() not in STOPWORDS]
 
 
+def _day(y: int, m: int, d: int) -> date | None:
+    try:
+        return date(y, m, d)
+    except ValueError:
+        return None
+
+
+def dates_in(question: str) -> tuple[list[date], tuple[date, date] | None]:
+    """Days named in the question (23.07.2026, 2026-07-23, 23. Juli 2026) and a named month (Juli 2026)."""
+    days = [_day(int(y), int(m), int(d)) for d, m, y in DAY_NUMERIC.findall(question)]
+    days += [_day(int(y), int(m), int(d)) for y, m, d in DAY_ISO.findall(question)]
+    days += [_day(int(y), MONTHS[m.lower()], int(d)) for d, m, y in DAY_WORDS.findall(question)]
+    days = sorted(dict.fromkeys(d for d in days if d))
+    month = None
+    if not days and (m := MONTH_WORDS.search(question)):
+        y, mo = int(m.group(2)), MONTHS[m.group(1).lower()]
+        month = (date(y, mo, 1), date(y, mo, calendar.monthrange(y, mo)[1]))
+    return days, month
+
+
 def gather(con, question: str, k: int, date_from, date_to) -> list[Hit]:
+    days, month = dates_in(question)
+    if days and len(days) <= MAX_DAYS and not (date_from or date_to):
+        # A named day is looked up directly: ranking cannot be trusted to find a date that is only metadata.
+        hits = [h for d in days for h in entries_on(con, d, limit=DAY_CHUNKS)]
+        return list({h.chunk_id: h for h in hits}.values())
+    if month and not (date_from or date_to):
+        date_from, date_to = month
     hits = search(con, question, lambda q: embed([q])[0], k=k, date_from=date_from, date_to=date_to)
     if FIRST_WORDS.search(question):
         seen = {h.chunk_id for h in hits}
@@ -129,6 +166,13 @@ def main(argv: list[str] | None = None) -> None:
         hits = gather(con, args.question, args.k, parse_when(args.date_from), parse_when(args.date_to, end=True))
         clock.mark(f"Suche fertig ({len(hits)} Auszüge)")
         if not hits:
+            days, _ = dates_in(args.question)
+            if days and len(days) <= MAX_DAYS and not (args.date_from or args.date_to):
+                for d in days:
+                    before, after = nearest_dates(con, d)
+                    print(f"Kein Eintrag für {d:%d.%m.%Y}. Nächste Einträge: davor {before or '-'}, "
+                          f"danach {after or '-'}.")
+                return
             print("Nothing found. Try other words or a wider date range.")
             return
         if args.search_only:

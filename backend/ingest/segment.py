@@ -109,7 +109,7 @@ class Report:
     per_year: dict[int, int]
     precision: dict[str, int]
     table_entries: int
-    empty_entries: list[int]
+    empty_entries: list[tuple[int, str]]       # (pos, date)
     future: list[tuple[int, str]] = field(default_factory=list)                 # (pos, date)
     outliers: list[tuple[int, str, str, str]] = field(default_factory=list)    # (pos, prev, this, next)
 
@@ -147,8 +147,8 @@ class Report:
                  for p, a, b, c in self.outliers])
         section("Dates in the future (pos: date):",
                 [f"  pos {p}: {d}" + (f"  {snip[p]!r}" if p in snip else "") for p, d in self.future])
-        section("Dated entries without text (pos):",
-                [f"  pos {p}" + (f"  {snip[p]!r}" if p in snip else "") for p in self.empty_entries])
+        section("Dated entries without text (pos: date):",
+                [f"  pos {p}: {d}" + (f"  {snip[p]!r}" if p in snip else "") for p, d in self.empty_entries])
         return "\n".join(lines)
 
 
@@ -184,7 +184,7 @@ def build_report(blocks: list[Block], entries: list[Entry], today: date | None =
         per_year=dict(Counter(e.date_start.year for e in entries if e.date_start)),
         precision=dict(Counter(e.precision for e in entries if e.precision)),
         table_entries=sum(e.format == "table" for e in entries),
-        empty_entries=[e.source_pos for e in entries if e.date_start and not e.text.strip()],
+        empty_entries=[(e.source_pos, e.raw_date) for e in entries if e.date_start and not e.text.strip()],
         future=[(e.source_pos, e.raw_date) for e in entries if e.date_start and e.date_start > today],
         outliers=find_outliers([e for e in entries if e.date_start]),
     )

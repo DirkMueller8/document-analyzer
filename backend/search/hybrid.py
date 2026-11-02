@@ -88,6 +88,24 @@ def search(con: sqlite3.Connection, question: str, embed_query, k: int = 12, poo
                 sources[cid]) for cid in top]
 
 
+def entries_on(con: sqlite3.Connection, day: date, limit: int = 20) -> list[Hit]:
+    """All chunks of the entries whose date range covers `day`, in text order (no ranking)."""
+    rows = con.execute(
+        "SELECT c.id, c.entry_id, e.date_start, e.raw_date, c.text FROM chunks c "
+        "JOIN entries e ON e.id = c.entry_id WHERE e.date_start <= ? AND e.date_end >= ? "
+        "ORDER BY e.date_start, e.id, c.seq LIMIT ?", (day.isoformat(), day.isoformat(), limit)).fetchall()
+    return [Hit(r[0], r[1], r[2], r[3], r[4], 0.0, ["date"]) for r in rows]
+
+
+def nearest_dates(con: sqlite3.Connection, day: date) -> tuple[str | None, str | None]:
+    """raw_date of the closest dated entry before and after `day`."""
+    before = con.execute("SELECT raw_date FROM entries WHERE date_end < ? ORDER BY date_end DESC LIMIT 1",
+                         (day.isoformat(),)).fetchone()
+    after = con.execute("SELECT raw_date FROM entries WHERE date_start > ? ORDER BY date_start LIMIT 1",
+                        (day.isoformat(),)).fetchone()
+    return (before[0] if before else None), (after[0] if after else None)
+
+
 def first_mentions(con: sqlite3.Connection, term: str, n: int = 5) -> list[Hit]:
     """Earliest entries containing the exact term (phrase search, diacritics-insensitive)."""
     phrase = '"' + term.replace('"', "") + '"'

@@ -8,9 +8,9 @@ import pytest
 from ingest.segment import Entry
 from ingest.store import connect, sync_entries
 from search import ollama_client
-from search.ask import context, names_in, parse_when
+from search.ask import context, dates_in, gather, names_in, parse_when
 from search.chunk import chunk_text
-from search.hybrid import first_mentions, fts_query, search
+from search.hybrid import entries_on, first_mentions, fts_query, nearest_dates, search
 from search.index import update_index
 
 DIM = 64
@@ -83,6 +83,31 @@ def test_hybrid_search_and_date_filter(con):
 
 def test_first_mentions_is_chronological(con):
     assert [h.raw_date for h in first_mentions(con, "Lena")] == ["15.06.1992", "05.03.2021"]
+
+
+def test_dates_in_question():
+    assert dates_in("Was habe ich am 03.04.2005 gemacht?") == ([date(2005, 4, 3)], None)
+    assert dates_in("Und am 3.4.2005 oder 2005-04-10?") == ([date(2005, 4, 3), date(2005, 4, 10)], None)
+    assert dates_in("Wie war der 10. April 2005?") == ([date(2005, 4, 10)], None)
+    assert dates_in("Was war im Juli 2026 los?") == ([], (date(2026, 7, 1), date(2026, 7, 31)))
+    assert dates_in("Am 31.02.2005 und 1:52 h") == ([], None)       # impossible date, no date at all
+    assert dates_in("Halbmarathon 2005") == ([], None)              # a bare year is not a filter
+
+
+def test_named_day_is_looked_up_directly(con, monkeypatch):
+    # The date is only metadata, so ranking alone would not find this entry for "was habe ich gemacht".
+    monkeypatch.setattr("search.ask.embed", lambda texts: fake_embed(texts))
+    hits = gather(con, "Was habe ich am 03.04.2005 gemacht?", k=12, date_from=None, date_to=None)
+    assert [h.raw_date for h in hits] == ["03.04.2005"] and hits[0].sources == ["date"]
+    assert [h.raw_date for h in entries_on(con, date(2005, 4, 10))] == ["10.04.2005"]
+    assert gather(con, "Was war am 04.04.2005?", k=12, date_from=None, date_to=None) == []
+    assert nearest_dates(con, date(2005, 4, 4)) == ("03.04.2005", "10.04.2005")
+
+
+def test_named_month_filters_the_search(con, monkeypatch):
+    monkeypatch.setattr("search.ask.embed", lambda texts: fake_embed(texts))
+    hits = gather(con, "Was habe ich im April 2005 gemacht?", k=12, date_from=None, date_to=None)
+    assert {h.raw_date for h in hits} <= {"03.04.2005", "10.04.2005"} and hits
 
 
 def test_fts_query_is_safe_and_drops_stopwords():

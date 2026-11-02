@@ -80,6 +80,22 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
     return vectors
 
 
+def chat_json(messages: list[dict], schema: dict, model: str = CHAT_MODEL, num_ctx: int = 8192,
+              think: bool = False, timeout: float = 600) -> tuple[str, dict]:
+    """One non-streamed chat call whose answer is constrained to `schema` (Ollama structured output).
+
+    Returns (content, stats). The grammar constrains the content to JSON, so reasoning cannot leak
+    into it even with think=False; think=True lets the model reason first (slower, separate field).
+    """
+    payload = {"model": _check_model(model), "messages": messages, "stream": False, "think": think,
+               "format": schema, "keep_alive": "10m", "options": {"num_ctx": num_ctx, "temperature": 0}}
+    data = _post("/api/chat", payload, timeout=timeout)
+    if "error" in data:
+        raise OllamaError(data["error"])
+    keys = ("prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration", "total_duration")
+    return data.get("message", {}).get("content", ""), {k: data.get(k) for k in keys}
+
+
 def chat_stream(messages: list[dict], model: str = CHAT_MODEL, num_ctx: int = 16384,
                 temperature: float = 0.2) -> Iterator[tuple[str, str]]:
     """Yield ("thinking" | "answer", text) pieces.

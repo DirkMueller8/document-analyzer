@@ -6,6 +6,8 @@ private/
 *.db
 *.db-*
 egress.log
+# the real period notes belong in data/ (the vault); this keeps a misplaced copy out of git
+config/mood_notes.yaml
 
 # Python
 .venv/
