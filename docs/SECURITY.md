@@ -37,7 +37,8 @@ This repository is public by design. **Knowing the code must not help an attacke
 - [ ] `git config core.hooksPath scripts/hooks`, and keep the local denylist up to date
 - [ ] 2FA on GitHub, branch protection on `main`
 - [ ] Encrypted backups of the vault file, and a copy of `overrides.yaml` and the taxonomy
-- [ ] Close the vault when done
+- [ ] Close the vault when done (it locks itself after two hours by default)
+- [ ] Turn off automatic updates of Ollama and update deliberately: an update changes the binary that sees the diary text, and a broken update can silently fall back to the CPU (check `ollama ps` before a long run)
 - [ ] Turn off the editor's "always create backup copy", and run `scripts\check-leftovers.ps1` after changing editor settings and now and then
 - [ ] Never save the protected document in a format without encryption (RTF, DOC, TXT)
 

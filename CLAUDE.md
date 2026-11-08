@@ -22,7 +22,7 @@ See `README.md`, `docs/ARCHITECTURE.md` and `docs/SECURITY.md` first.
 ## Working
 - Python 3.14 venv: `backend\.venv\Scripts\python`. Tests: `cd backend; .venv\Scripts\python -m pytest -q`
   (all must pass before a commit). New behavior needs a test with synthetic data.
-- Shortcuts from the repo root: `.\ask.ps1`, `.\sync.ps1`, `.\weight.ps1`, `.\enrich.ps1`, `.\evaluate.ps1`, `.\people.ps1`, `.\mood.ps1`, `.\week.ps1`, `.\cloud-weight.ps1` (user approval + API key; never run it yourself), `.\scripts\check-leftovers.ps1`,
+- Shortcuts from the repo root: `.\ask.ps1`, `.\sync.ps1`, `.\weight.ps1`, `.\enrich.ps1`, `.\evaluate.ps1`, `.\people.ps1`, `.\mood.ps1`, `.\milestones.ps1`, `.\week.ps1`, `.\cloud-weight.ps1` (user approval + API key; never run it yourself), `.\scripts\check-leftovers.ps1`,
   `.\scripts\vault-open.ps1` / `vault-close.ps1` (administrator).
 - Layout: `backend/ingest` (decrypt, parse, dates, sync), `backend/search` (chunk, index, hybrid search, Q&A,
   Ollama client), `backend/enrich` (per-entry extraction: schema, text checks, resumable run), `backend/analysis` (measurements, weight statistics), `backend/privacy` (gateway, cloud chart),
@@ -30,8 +30,11 @@ See `README.md`, `docs/ARCHITECTURE.md` and `docs/SECURITY.md` first.
 - Design rules: numbers come from SQL or patterns, never from the language model; every answer cites entry
   dates; local models only (the Ollama client refuses non-loopback hosts and cloud models); the only egress is
   the privacy gateway (strict schema, user approval, logged).
-- Phase 3 (per-entry extraction, `backend/enrich`) runs; next: an accuracy check against a small
-  labeled sample, then the full run (see the roadmap in `README.md`).
+- Phase 3 (per-entry extraction, `backend/enrich`) is done: validated against the user's markers, full run
+  over the whole diary finished. Model counts are a trend; the user's own markers are the exact source.
+  Phase 7 (planning, `backend/planning`) has a first version. Next: phase 4 agents (see the roadmap in `README.md`).
+- Ollama auto-update stays off: an update once lost CUDA detection and ran the batch on the CPU. Check
+  `ollama ps` (100% GPU) before a long run.
 
 ## Tooling quirks on this machine
 - The Bash tool loses backslashes inside heredocs and sed/python one-liners. For files containing
